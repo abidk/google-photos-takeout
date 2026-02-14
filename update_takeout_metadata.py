@@ -69,10 +69,14 @@ def update_exif(file_path, json_data):
     if not date_str:
         return "SKIPPED", None, "No date available"
 
-    cmd = ["exiftool", "-overwrite_original",
-           f"-DateTimeOriginal={date_str}",
-           f"-CreateDate={date_str}",
-           f"-ModifyDate={date_str}"]
+    cmd = [
+        "exiftool",
+        "-overwrite_original",
+        "-ignoreMinorErrors",  # <- NEW: ignore minor file issues
+        f"-DateTimeOriginal={date_str}",
+        f"-CreateDate={date_str}",
+        f"-ModifyDate={date_str}"
+    ]
 
     if UPDATE_FILE_MODIFY_DATE:
         cmd.append(f"-FileModifyDate={date_str}")
@@ -109,7 +113,7 @@ def update_exif(file_path, json_data):
 
     # Validate
     validate = subprocess.run(
-        ["exiftool", "-DateTimeOriginal", "-s3", str(file_path)],
+        ["exiftool", "-ignoreMinorErrors", "-DateTimeOriginal", "-s3", str(file_path)],
         capture_output=True, text=True
     )
     actual = validate.stdout.strip()
