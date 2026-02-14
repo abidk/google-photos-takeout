@@ -7,7 +7,10 @@ import re
 import datetime
 import shutil
 
-UPDATE_FILE_MODIFY_DATE = True
+# If True, the script will also update the file's last modified timestamp
+# to match the EXIF DateTimeOriginal. Set to False if you want to preserve
+# the original file modification time.
+UPDATE_FILE_TIMESTAMP = True
 
 MONTHS = {
     "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
@@ -39,7 +42,20 @@ def extract_date_from_folder(file_path):
     return None
 
 
+def extract_date_from_filename(file_path):
+    """
+    Looks for patterns like 20230126_203929 in the filename.
+    Returns EXIF-formatted date if found.
+    """
+    match = re.search(r"(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})", file_path.stem)
+    if match:
+        year, month, day, hour, minute, second = map(int, match.groups())
+        return f"{year:04d}:{month:02d}:{day:02d} {hour:02d}:{minute:02d}:{second:02d}"
+    return None
+
+
 def resolve_date(json_data, file_path):
+    # 1️⃣ Google JSON metadata first
     if json_data and "photoTakenTime" in json_data:
         pt = json_data["photoTakenTime"]
         if "formatted" in pt and pt["formatted"]:
@@ -49,6 +65,13 @@ def resolve_date(json_data, file_path):
         if "timestamp" in pt and pt["timestamp"]:
             dt = datetime.datetime.utcfromtimestamp(int(pt["timestamp"]))
             return dt.strftime("%Y:%m:%d %H:%M:%S")
+
+    # 2️⃣ Filename date/time second
+    date_from_filename = extract_date_from_filename(file_path)
+    if date_from_filename:
+        return date_from_filename
+
+    # 3️⃣ Folder fallback
     return extract_date_from_folder(file_path)
 
 
@@ -72,13 +95,13 @@ def update_exif(file_path, json_data):
     cmd = [
         "exiftool",
         "-overwrite_original",
-        "-ignoreMinorErrors",  # <- NEW: ignore minor file issues
+        "-ignoreMinorErrors",
         f"-DateTimeOriginal={date_str}",
         f"-CreateDate={date_str}",
         f"-ModifyDate={date_str}"
     ]
 
-    if UPDATE_FILE_MODIFY_DATE:
+    if UPDATE_FILE_TIMESTAMP:
         cmd.append(f"-FileModifyDate={date_str}")
 
     if json_data:
@@ -104,9 +127,13 @@ def update_exif(file_path, json_data):
         if json_data:
             old_json = find_matching_json(file_path)
             if old_json:
-                new_json = new_file.parent / (new_file.name + old_json.suffix)
+                new_json = new_file.parent / (new_file.stem + old_json.suffix)
                 shutil.move(old_json, new_json)
         return update_exif(new_file, json_data)
+
+    # Handle OtherImageStart errors by skipping
+    if "OtherImageStart" in stderr:
+        return "SKIPPED", date_str, stderr
 
     if result.returncode != 0:
         return "FAILED", date_str, stderr or "Exiftool failed"
