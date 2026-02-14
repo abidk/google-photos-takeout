@@ -9,8 +9,8 @@ This script updates and corrects the **EXIF metadata** and file timestamps for p
 * Determines the correct file date using the following priority:
 
   1. **Google JSON metadata (`photoTakenTime`)**
-  3. **Date/time in the filename** (e.g., `20230126_203929.MP4`)
-  4. **Folder year** (e.g., `Photos from 2023`) as a fallback
+  2. **Date/time in the filename** (e.g., `20230126_203929.MP4`)
+  3. **Folder year** (e.g., `Photos from 2023`) as a fallback
 * Updates **EXIF metadata fields**: `DateTimeOriginal`, `CreateDate`, `ModifyDate`.
 * Optionally updates **filesystem timestamp (`FileModifyDate`)** to match the EXIF date.
 * Adds **GPS coordinates** and **description** from JSON if available.
@@ -30,10 +30,16 @@ This script updates and corrects the **EXIF metadata** and file timestamps for p
 ## Usage
 
 1. Export your Google Photos from https://takeout.google.com/
+2. Install **ExifTool** via [Homebrew](https://brew.sh/) (required to run the script):
+
+```bash
+brew install exiftool
+```
+
 2. Run the script:
 
 ```bash
 python3 update_takeout_metadata.py
 ```
 
-2. Enter the path to your Google Takeout folder when prompted.
+3. Enter the path to your Google Takeout folder when prompted.
